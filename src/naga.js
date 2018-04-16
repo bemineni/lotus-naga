@@ -1,3 +1,7 @@
+//                          OM Ganesha
+// Srikanth Bemineni
+// 04/16/2018
+
 (function($){
     console.log("loading Naga...")
     $.fn.naga = function(options){
