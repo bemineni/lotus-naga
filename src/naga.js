@@ -11,6 +11,8 @@
         //Engine attributes
         var eattr = {'score':0,
                      'status':'Press space to start the game',
+                     'status_code':'#EAB126',
+                     'status_text_color':'black',
                      'game_started' : -1};
         _this = this
         const UP = 1;
@@ -21,8 +23,8 @@
         var snake = []
         var headx = 0;
         var heady = 0;
-        var foodx = null
-        var foody = null
+        var foodx = -1
+        var foody = -1
         this.init = function(){
                   console.log("Naga init");
                   var default_options ={'version': "1.0",
@@ -36,7 +38,7 @@
                   canvasElement = $('#naga-canvas', $(nElement))[0];
                   h = getTextHeight('16px arial');
                   //4 for line sapcing and 3 lines at the bottom
-                  selectOptions['text_display_height'] = (h.height + 4) * 3 
+                  selectOptions['text_display_height'] = (h.height + 4) * 4 
                   canvasElement.width = selectOptions['width']
                   canvasElement.height = selectOptions['height'] + selectOptions['text_display_height']
                   ctx = canvasElement.getContext("2d");
@@ -59,13 +61,13 @@
 
         this._run = function(e){
             clearScreen(0,0,selectOptions['width'],selectOptions['height'] + selectOptions['text_display_height'])
-            drawBox(foodx,foody)
             drawStatus()
             var currentx = headx
             var currenty = heady
             var growSnake = false
             var dead = false
             var color="black"
+            var coord_dict = {}
             for (var i = 0; i < snake.length; i++) {
                 if(i == 0)
                 {
@@ -76,6 +78,7 @@
                         //food consumed
                         growSnake = true
                     }
+
                     //console.log("Drawing head " + currentx +  " " +  currenty)
                 }
                 else
@@ -91,7 +94,29 @@
                     drawBox(currentx,currenty,color)
                     color = (color=="black")?"red":"black"
                 }
+                // If food is not set, then store the
+                // coordinates to check if it conflicts with the food 
+                // coordinates
+                if(foodx == -1 ||foody == -1)
+                {
+                    coord_dict[currentx.toString()+currenty.toString()] = null
+                }
             }
+
+            if(foodx == -1 && foody == -1 )
+            {
+                //There is no food set yet
+                foodx = randomCord(selectOptions['num_unit_matrix'], eattr['unit_width'])
+                foody = randomCord(selectOptions['num_unit_matrix'], eattr['unit_height'])
+                var search = foodx.toString() + foody.toString()
+                while(coord_dict.hasOwnProperty(search))
+                {
+                   foodx = randomCord(selectOptions['num_unit_matrix'], eattr['unit_width'])
+                   foody = randomCord(selectOptions['num_unit_matrix'], eattr['unit_height'])
+                }
+            }
+
+            drawBox(foodx,foody)
 
             //Check for died
 
@@ -100,17 +125,14 @@
             // 2. add new head, which is nothing but the direction
             // 3. change the second body position relative to the new head position
             
-            // New head position 
             if(growSnake)
             {
                 // TO fix:: new food chances of overlapping on the snake body
-                foodx = randomCord(selectOptions['num_unit_matrix'], eattr['unit_width'])
-                foody = randomCord(selectOptions['num_unit_matrix'], eattr['unit_height'])
-                growSnake = false
                 lastbodydirection = snake[snake.length-1]
                 snake.push(notDirection(lastbodydirection))
                 eattr['score'] += 1
-               
+                growSnake=false
+                foodx = foody = -1
             }
 
             snake.pop()
@@ -123,7 +145,7 @@
             headx = getX(headx,direction)
             heady = getY(heady,direction)
             if(headx > selectOptions['width'] || headx < 0 ||
-                heady > selectOptions['height'] || heady < 0)
+               heady > selectOptions['height'] || heady < 0)
             {
                 dead = true
             }
@@ -131,14 +153,28 @@
             if(dead)
             {
                 eattr['status']  = "You are dead !!!. Press space to start a new game"
+                eattr['status_code'] = "#F24C4E"
+                eattr['status_text_color'] = 'black'
                 clearInterval(eattr['game_started'])
                 eattr['game_started'] = -1
                 clearScreen(0,selectOptions['height'],selectOptions['width'],selectOptions['text_display_height'])
                 drawStatus()
             }
+        }
 
-            console.log(snake.length)
-            //console.log("New head " + headx +  " " +  heady)
+        function checkFoodPosition()
+        {
+            var currenty,currentx;
+            currentx = headx
+            currenty = heady
+            for (var i = 1; i < snake.length; i++) {
+                if(currentx == foodx && currenty == foody){
+                    return false
+                }
+                currentx = getX(currentx,snake[i])
+                currenty = getY(currenty,snake[i])
+            }
+            return true
         }
 
         function notDirection(direction){
@@ -158,22 +194,34 @@
             if((code == 38 || code == 87) && (snake.length == 1 || direction != DOWN))
             {
                 direction = UP
-                console.log("Setting UP")
             }
             else if((code == 40 || code == 83)&& (snake.length == 1 || direction != UP))
             {
                 direction = DOWN
-                console.log("Setting DOWN")
             }
             else if((code == 37 || code == 65) && (snake.length == 1 || direction != RIGHT))
             {
                 direction = LEFT
-                console.log("Setting LEFT")
             }
             else if((code == 39 || code == 68)&& (snake.length == 1 || direction != LEFT))
             {
                 direction = RIGHT
-                console.log("Setting RIGHT")
+            }
+            else if(code == 72)
+            {
+                if(selectOptions['refresh_interval'] > 100)
+                {
+                    selectOptions['refresh_interval'] -= 100
+                }
+                restart()
+            }
+            else if(code == 76)
+            {
+                if(selectOptions['refresh_interval'] < 1500)
+                {
+                    selectOptions['refresh_interval'] += 100
+                }
+                restart()
             }
             else if(code == 32)
             {
@@ -184,12 +232,12 @@
                     snake = []
                     direction = RIGHT;
                     snake.unshift(direction)
-                    headx=0
-                    heady=0
-                    foodx = randomCord(selectOptions['num_unit_matrix'], eattr['unit_width'])
-                    foody = randomCord(selectOptions['num_unit_matrix'], eattr['unit_height'])
+                    headx = heady = 0
+                    foodx =foody = -1
                     eattr['game_started'] = setInterval(_this._run,selectOptions['refresh_interval'])
                     eattr['status'] = "Game started"
+                    eattr['status_code'] = "#1FB58F"
+                    eattr['status_text_color'] = 'black'
                 }
             }
 
@@ -198,16 +246,23 @@
             return;
         }
 
+        function restart()
+        {
+            if(eattr['game_started'] != -1)
+            {
+                clearInterval(eattr['game_started'])
+                eattr['game_started'] = setInterval(_this._run,selectOptions['refresh_interval'])
+            }
+        }
+
         function getX(x,direct)
         {
             //    '#'#
-            if(direct == RIGHT)
-            {
+            if(direct == RIGHT){
                 return x + eattr['unit_width']
             }
             // #'#'
-            else if(direct == LEFT)
-            {
+            else if(direct == LEFT){
                 return x - eattr['unit_width']
             }
 
@@ -218,14 +273,12 @@
         {
             //  #
             // '#'
-            if(direct == UP)
-            {
+            if(direct == UP){
                 return y - eattr['unit_height']
             }
             //  '#'
             //  '#'
-            else if(direct == DOWN)
-            {
+            else if(direct == DOWN){
                 return y + eattr['unit_height']
             }
 
@@ -242,29 +295,36 @@
             ctx.font = '16px arial';
             ctx.textAlign = 'left';
             ctx.textBaseline = 'top';
-            size = ctx.measureText("'Down/S - Move down'")
+            //Longest string 
+            size = ctx.measureText("Down/S - Move down")
             afterthisheight = selectOptions['height'] + 4;
             
             //Line one
+            ctx.fillStyle = eattr['status_code']
+            ctx.fillRect(0 ,selectOptions['height'] + 1 , selectOptions['width'], h.height + 4 )
+            ctx.fillStyle = eattr['status_text_color']
             ctx.fillText(eattr['status'], 4, afterthisheight);
-            var score = 'Score:' + eattr['score']
+            var score = 'Speed:' + (15 - (selectOptions['refresh_interval']/100)) + '  Score:' + eattr['score']
             scorewidth = ctx.measureText(score)
-            ctx.fillText('Score:' + eattr['score'] , selectOptions['width'] - 10 - scorewidth.width , afterthisheight )
+            ctx.fillText(score , selectOptions['width'] - 10 - scorewidth.width , afterthisheight )
 
+            ctx.fillStyle = 'red'
             //Line two 
             ctx.fillText('Up/W - Move up', 4, afterthisheight + h.height + 4)
-            ctx.fillText('Left/A - Move left', size.width + 4 , afterthisheight + h.height + 4)
+            ctx.fillText('Left/A - Move left', size.width + 30 , afterthisheight + h.height + 4)
 
             //Line three
             ctx.fillText('Down/S - Move down', 4, afterthisheight + ((h.height + 4) * 2) )
-            ctx.fillText('Right/D - Move right', size.width + 4, afterthisheight + ((h.height + 4) * 2) )
+            ctx.fillText('Right/D - Move right', size.width + 30, afterthisheight + ((h.height + 4) * 2) )
+
+            //Line four
+            ctx.fillText('H - Increase speed', 4, afterthisheight + ((h.height + 4) * 3) )
+            ctx.fillText('L - Decrease speed', size.width + 30, afterthisheight + ((h.height + 4) * 3) )
         }
 
         function drawBox(x, y, color="red"){
-            
             ctx.fillStyle = color;
             ctx.fillRect(x,y,eattr['unit_width'],eattr['unit_height']);
-            
         }
 
         function drawCircle(x,y,width,color="black")
@@ -282,7 +342,7 @@
         }
 
         function randomCord(max, unit_length) {
-            var t = (Math.floor(Math.random() * (max+1)) / unit_length)
+            var t = Math.floor(Math.random() * max)
             return ( Math.floor(t) * unit_length )
         }
 
@@ -340,6 +400,5 @@
                  }
             });
          }
-
     }
 })(jQuery)
